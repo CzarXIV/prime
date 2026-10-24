@@ -1,0 +1,51 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build signed release APK
+        env:
+          # Personal sideload key kept in the repo so every build can update the last one in place.
+          KEYSTORE_PATH: ${{ github.workspace }}/signing/prime.jks
+          KEYSTORE_PASSWORD: primebuild
+          KEY_ALIAS: prime
+          KEY_PASSWORD: primebuild
+        run: |
+          set -o pipefail
+          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          msg=$(grep -E "^e: |error:|What went wrong" -A4 build.log | head -80 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+          echo "::error title=Build failed::$msg"
+
+      - name: Prepare APK
+        run: cp app/build/outputs/apk/release/app-release.apk prime.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Prime 1.0.${{ github.run_number }}
+          files: prime.apk
+          make_latest: true

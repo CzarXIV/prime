@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Prime</string>
+    <string name="a11y_desc">Prime watches which app is opened so it can add a pause before apps on your distraction list, and shows your intention when you unlock your phone. It does not read screen content or what you type.</string>
+</resources>

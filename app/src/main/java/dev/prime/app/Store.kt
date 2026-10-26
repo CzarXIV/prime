@@ -82,7 +82,7 @@ val DEFAULT_PRINCIPLES = listOf(
 )
 
 object Store {
-    private lateinit var prefs: SharedPreferences
+    internal lateinit var prefs: SharedPreferences
     val version = mutableIntStateOf(0)
 
     fun init(ctx: Context) {

@@ -5,4 +5,12 @@
         <item name="android:navigationBarColor">#000000</item>
         <item name="android:colorAccent">#FF3B1F</item>
     </style>
+
+    <style name="Theme.Prime.Translucent" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

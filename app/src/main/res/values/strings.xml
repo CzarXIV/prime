@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Prime</string>
-    <string name="a11y_desc">Prime watches which app is opened so it can add a pause before apps on your distraction list, and shows your intention when you unlock your phone. It does not read screen content or what you type.</string>
+    <string name="a11y_desc">Prime sees which app is open (for the pause before distraction apps and the screen after unlock). With the content guard on, it also checks on-screen text against your watch words and, once a minute, checks the screen with an on-device image model. Everything is checked in memory on your phone and thrown away. Nothing is saved or sent anywhere, and password fields are never read.</string>
 </resources>

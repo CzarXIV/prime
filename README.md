@@ -15,6 +15,11 @@ Prime your phone for the work. An Android app that turns your digital environmen
   - Optional: home and lock screen wallpaper switches to your current mode.
 - **Rituals + streaks** — morning priming (one intention, three tasks), evening review (wins, lesson, effort rating). A day counts toward the streak when both are done. Daily reminders at times you choose.
 
+- **Content guard (TRAIN tab)** — built to train discipline, not replace it. When adult content shows up, Prime catches the moment and hands you the choice: **Walk away** (a rep), **Give me 60 seconds** (a short reset), or **Continue** (a slip, no judgement).
+  - Detection: on-screen text vs. an editable watch-word list, plus an optional on-device image check once a minute (Android 11+).
+  - Levels adapt: Coach (full pause) → Nudge (small card) → Banner (light banner). 7 clean days earn the next level; 2 slips in 3 days bring more support back.
+  - Evening review asks what was going on after a slip; patterns (time, app, place, mood) show after 3 slips.
+
 ## Setup on the phone
 
 1. Install the APK (allow installs from your browser when asked).
@@ -22,7 +27,9 @@ Prime your phone for the work. An Android app that turns your digital environmen
    - If Android blocks it as a *restricted setting*: App info → ⋮ → **Allow restricted settings**, then try again.
 3. Pick your distraction apps on the same tab.
 
-The accessibility service only listens for which app comes to the foreground. It never reads screen content or what you type. All data stays on the device.
+With the content guard on, the accessibility service reads on-screen text (never password fields) and, once a minute, takes a screenshot for the image model. Both are checked in memory on the phone and discarded immediately. Nothing is saved or sent anywhere. All data stays on the device.
+
+Image model: `assets/nsfw.tflite` from [nipunru/nsfw-detector-android](https://github.com/nipunru/nsfw-detector-android) (MIT).
 
 ## Build
 

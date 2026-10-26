@@ -94,6 +94,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        Train.evaluate()
         Store.bump() // refresh permission status, counters from the guard
     }
 }
@@ -130,7 +131,8 @@ fun HomeScaffold(onRitual: (String) -> Unit) {
         Box(Modifier.weight(1f)) {
             when (tab) {
                 0 -> TodayTab(onRitual)
-                1 -> GuardTab()
+                1 -> TrainTab()
+                2 -> GuardTab()
                 else -> CodeTab()
             }
         }
@@ -159,7 +161,7 @@ fun TabBar(tab: Int, onTab: (Int) -> Unit) {
     Column {
         Rule()
         Row(Modifier.fillMaxWidth().height(60.dp)) {
-            listOf("TODAY", "GUARD", "CODE").forEachIndexed { i, t ->
+            listOf("TODAY", "TRAIN", "GUARD", "CODE").forEachIndexed { i, t ->
                 Box(
                     Modifier.weight(1f).fillMaxHeight().clickable { onTab(i) },
                     contentAlignment = Alignment.Center,
@@ -174,8 +176,8 @@ fun TabBar(tab: Int, onTab: (Int) -> Unit) {
                         t,
                         color = if (i == tab) P.Text else P.Muted,
                         fontWeight = FontWeight.Black,
-                        fontSize = 13.sp,
-                        letterSpacing = 3.sp,
+                        fontSize = 12.sp,
+                        letterSpacing = 2.sp,
                     )
                 }
             }
@@ -330,9 +332,9 @@ fun TodayTab(onRitual: (String) -> Unit) {
 }
 
 @Composable
-fun Stat(label: String, n: Int, color: Color, modifier: Modifier) {
+fun Stat(label: String, n: Int, color: Color, modifier: Modifier, suffix: String = "") {
     Column(modifier.border(1.5.dp, P.Line).padding(16.dp)) {
-        Text("$n", color = color, fontSize = 44.sp, fontWeight = FontWeight.Black, lineHeight = 46.sp)
+        Text("$n$suffix", color = color, fontSize = 44.sp, fontWeight = FontWeight.Black, lineHeight = 46.sp, maxLines = 1)
         Label(label)
     }
 }
@@ -692,6 +694,7 @@ fun EveningScreen(onDone: () -> Unit) {
             }
             Gap(28)
         }
+        SlipReflection()
         Label("Wins")
         Field(wins, { wins = it }, "What went right?", size = 18.sp, singleLine = false)
         Gap(28)

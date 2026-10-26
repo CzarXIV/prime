@@ -44,6 +44,21 @@
             android:launchMode="singleTask"
             android:taskAffinity="dev.prime.app.friction" />
 
+        <activity
+            android:name=".ContentPauseActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.prime.app.content" />
+
+        <activity
+            android:name=".ContentNudgeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.prime.app.nudge"
+            android:theme="@style/Theme.Prime.Translucent" />
+
         <service
             android:name=".PrimeAccessibilityService"
             android:exported="true"

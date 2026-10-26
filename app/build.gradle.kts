@@ -17,6 +17,9 @@ android {
         targetSdk = 35
         versionCode = runNumber
         versionName = "1.0.$runNumber"
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     signingConfigs {
@@ -48,6 +51,9 @@ android {
     buildFeatures {
         compose = true
     }
+    androidResources {
+        noCompress += listOf("tflite")
+    }
     lint {
         abortOnError = false
         checkReleaseBuilds = false
@@ -63,4 +69,5 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
 }

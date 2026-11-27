@@ -44,6 +44,7 @@ import kotlinx.coroutines.delay
 abstract class ContentMomentActivity : ComponentActivity() {
     protected var pkg = ""
     protected var src = ""
+    protected val strict = mutableStateOf(false)
     private var decided = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +65,7 @@ abstract class ContentMomentActivity : ComponentActivity() {
     private fun readIntent(i: Intent) {
         pkg = i.getStringExtra("pkg") ?: ""
         src = i.getStringExtra("src") ?: ""
+        strict.value = i.getBooleanExtra("strict", false)
     }
 
     @Composable
@@ -78,7 +80,19 @@ abstract class ContentMomentActivity : ComponentActivity() {
         finish()
     }
 
+    fun leaveStrict() {
+        if (!decided) {
+            decided = true
+            Strict.recordStop()
+        }
+        goHome(this)
+        finish()
+    }
+
     fun carryOn() {
+        if (strict.value || Strict.active) {
+            leaveStrict(); return
+        }
         if (!decided) {
             decided = true
             Train.record(false, pkg, src)
@@ -92,6 +106,11 @@ abstract class ContentMomentActivity : ComponentActivity() {
 class ContentPauseActivity : ContentMomentActivity() {
     @Composable
     override fun Screen() {
+        if (strict.value) {
+            BackHandler { leaveStrict() }
+            StrictStopScreen(onLeave = { leaveStrict() })
+            return
+        }
         var resetting by remember { mutableStateOf(false) }
         BackHandler { walkAway() }
         if (resetting) ResetScreen(onDone = { walkAway() })

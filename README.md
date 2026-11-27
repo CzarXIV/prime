@@ -20,6 +20,14 @@ Prime your phone for the work. An Android app that turns your digital environmen
   - Levels adapt: Coach (full pause) → Nudge (small card) → Banner (light banner). 7 clean days earn the next level; 2 slips in 3 days bring more support back.
   - Evening review asks what was going on after a slip; patterns (time, app, place, mood) show after 3 slips.
 
+- **Strict mode (TRAIN tab)** — a timed lock from 1 hour to 30 days with no early exit. Until it ends:
+  - content stops have one button: **Leave**
+  - content guard settings can only get stricter
+  - Prime is a device admin, so it can't be uninstalled
+  - the Settings screens that could switch Prime off are closed on sight: Accessibility, Prime's App info, Prime's battery & permissions, Device admin apps, uninstall screens, OEM battery/app managers (Device care, Phone Master, Security…) when they show Prime, Developer options, and Reset options
+  - moving the phone's clock doesn't shorten the lock
+  - Known gap: Safe mode (and a factory reset) pause all downloaded apps, Prime included.
+
 ## Setup on the phone
 
 1. Install the APK (allow installs from your browser when asked).

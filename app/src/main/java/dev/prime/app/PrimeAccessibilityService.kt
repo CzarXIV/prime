@@ -49,6 +49,11 @@ class PrimeAccessibilityService : AccessibilityService() {
 
     private val SKIP = setOf("com.android.systemui")
 
+    // Strict mode
+    private val lastClass = HashMap<String, String>()
+    private var strictPending = false
+    private var lastBlock = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         Store.init(this)
@@ -60,14 +65,18 @@ class PrimeAccessibilityService : AccessibilityService() {
 
         val r = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
-                if (i.action == Intent.ACTION_USER_PRESENT) onUnlock()
+                when (i.action) {
+                    Intent.ACTION_USER_PRESENT -> onUnlock()
+                    Intent.ACTION_TIME_CHANGED -> Strict.checkClock(c)
+                }
             }
         }
-        ContextCompat.registerReceiver(
-            this, r, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED
-        )
+        val filter = IntentFilter(Intent.ACTION_USER_PRESENT).apply { addAction(Intent.ACTION_TIME_CHANGED) }
+        ContextCompat.registerReceiver(this, r, filter, ContextCompat.RECEIVER_EXPORTED)
         unlockReceiver = r
+        Strict.checkClock(this)
         main.postDelayed(imageTick, 60_000L)
+        main.postDelayed(clockTick, 30_000L)
     }
 
     // ------------------------------------------------------------ unlock
@@ -91,7 +100,11 @@ class PrimeAccessibilityService : AccessibilityService() {
         if (pkg == packageName) return
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            event.className?.let { lastClass[pkg] = it.toString() }
             appFriction(pkg)
+        }
+        if (pkg in SettingsMap.WATCHED && Strict.active) {
+            scheduleStrictCheck()
         }
         if (Train.guardOn && Train.capText && pkg !in SKIP) {
             scheduleTextScan()
@@ -111,6 +124,50 @@ class PrimeAccessibilityService : AccessibilityService() {
         startActivity(
             Intent(this, FrictionActivity::class.java)
                 .putExtra("pkg", pkg)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        )
+    }
+
+    // ------------------------------------------------------------ strict: settings lock
+
+    private val clockTick = object : Runnable {
+        override fun run() {
+            runCatching { Strict.checkClock(this@PrimeAccessibilityService) }
+            main.postDelayed(this, 30_000L)
+        }
+    }
+
+    private fun scheduleStrictCheck() {
+        if (strictPending) return
+        strictPending = true
+        main.postDelayed({
+            strictPending = false
+            strictCheck()
+        }, 120L)
+    }
+
+    private fun strictCheck() {
+        if (!Strict.active) return
+        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
+        val pkg = root.packageName?.toString() ?: return
+        if (pkg !in SettingsMap.WATCHED) return
+        val cls = lastClass[pkg] ?: ""
+        worker.execute {
+            val text = runCatching { TextMatcher.collect(root, 1500) }.getOrDefault("")
+            val rule = SettingsMap.match(pkg, cls, text) ?: return@execute
+            main.post { blockSettings(rule.name) }
+        }
+    }
+
+    private fun blockSettings(name: String) {
+        val t = SystemClock.elapsedRealtime()
+        if (t - lastBlock < 600) return
+        lastBlock = t
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        startActivity(
+            Intent(this, StrictBlockActivity::class.java)
+                .putExtra("what", name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
     }
@@ -188,6 +245,18 @@ class PrimeAccessibilityService : AccessibilityService() {
 
     private fun catchMoment(pkg: String, src: String) {
         if (isQuiet()) return
+        if (Strict.active) {
+            // No choice to make: full stop, every time. Short quiet window so a return is caught again.
+            Train.quietUntil = System.currentTimeMillis() + 5_000L
+            startActivity(
+                Intent(this, ContentPauseActivity::class.java)
+                    .putExtra("pkg", pkg)
+                    .putExtra("src", src)
+                    .putExtra("strict", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            )
+            return
+        }
         Train.quietUntil = System.currentTimeMillis() + 90_000L
         Train.evaluate()
         when (Train.level) {

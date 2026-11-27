@@ -62,17 +62,17 @@ object Train {
 
     // ---- settings
     var guardOn: Boolean
-        get() = p.getBoolean("cg_on", true)
-        set(v) { p.edit().putBoolean("cg_on", v).apply(); Store.bump() }
+        get() = p.getBoolean("cg_on", true) || Strict.active
+        set(v) { if (!v && Strict.active) return; p.edit().putBoolean("cg_on", v).apply(); Store.bump() }
 
     var imageOn: Boolean
         get() = p.getBoolean("cg_img", true)
-        set(v) { p.edit().putBoolean("cg_img", v).apply(); Store.bump() }
+        set(v) { if (!v && Strict.active) return; p.edit().putBoolean("cg_img", v).apply(); Store.bump() }
 
     /** 0 = low, 1 = medium, 2 = high */
     var sensitivity: Int
         get() = p.getInt("cg_sens", 1)
-        set(v) { p.edit().putInt("cg_sens", v.coerceIn(0, 2)).apply(); Store.bump() }
+        set(v) { if (Strict.active && v < sensitivity) return; p.edit().putInt("cg_sens", v.coerceIn(0, 2)).apply(); Store.bump() }
 
     val threshold: Float get() = floatArrayOf(0.85f, 0.75f, 0.65f)[sensitivity]
 
@@ -83,6 +83,7 @@ object Train {
             return List(a.length()) { a.optString(it) }.filter { it.isNotBlank() }
         }
         set(v) {
+            if (Strict.active && !v.containsAll(words)) return // Strict: add only
             p.edit().putString("cg_words", JSONArray(v).toString()).apply()
             Store.bump()
         }
@@ -122,6 +123,7 @@ object Train {
         }
 
     fun chooseLevel(i: Int) {
+        if (Strict.active) return
         level = i
     }
 

@@ -83,6 +83,8 @@ fun TrainTab() {
             }
         }
 
+        item { StrictSection() }
+
         item {
             Column {
                 Label("Last 14 days")
@@ -110,6 +112,10 @@ fun TrainTab() {
         item {
             Column {
                 Label("Training level")
+                if (Strict.active) {
+                    Gap(4)
+                    Text("Strict mode is on: every catch is a full stop until it ends.", color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
                 Gap(4)
                 Text(
                     "Clean days earn you less help. Two slips in three days bring more support back. Tap a level to set it yourself.",
@@ -179,6 +185,10 @@ fun TrainTab() {
         item {
             Column {
                 Label("Content guard")
+                if (Strict.active) {
+                    Gap(4)
+                    Text("Locked by Strict mode. Settings can only get stricter.", color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
                 Gap(4)
                 ToggleRow("Guard on", "Catches the moment, hands you the choice", Train.guardOn) { Train.guardOn = it }
                 if (Train.guardOn) {

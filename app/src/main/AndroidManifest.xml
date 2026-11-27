@@ -59,6 +59,26 @@
             android:taskAffinity="dev.prime.app.nudge"
             android:theme="@style/Theme.Prime.Translucent" />
 
+        <activity
+            android:name=".StrictBlockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.prime.app.strict" />
+
+        <receiver
+            android:name=".PrimeAdminReceiver"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".PrimeAccessibilityService"
             android:exported="true"

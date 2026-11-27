@@ -234,7 +234,8 @@ object SettingsMap {
         },
     )
 
-    private val UNINSTALL_PRIME = Regex("uninstall\\s+[\"“']?prime\\b(?!\\s*video)")
+    // Dialog title form only ("Uninstall Prime?"), so a home-screen drag onto the Uninstall target doesn't match.
+    private val UNINSTALL_PRIME = Regex("uninstall\\s+[\"“']?prime[\"”']?\\s*\\?")
     private val UNINSTALL_RULE = Rule("Uninstall screens", "Uninstalling Prime") { _, _, _ -> true }
 
     /**

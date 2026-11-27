@@ -51,6 +51,20 @@ class PrimeAccessibilityService : AccessibilityService() {
 
     // Strict mode
     private val lastClass = HashMap<String, String>()
+    /** Home-screen apps: the only places besides installers where an uninstall dialog can appear. */
+    private var launchers: Set<String> = emptySet()
+
+    private fun loadLaunchers() {
+        launchers = runCatching {
+            @Suppress("DEPRECATION")
+            packageManager.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+            ).map { it.activityInfo.packageName }.toSet()
+        }.getOrDefault(emptySet()) - packageName
+    }
+
+    /** Could this app show a real uninstall dialog? Chats, browsers and notes never count. */
+    private fun canUninstall(pkg: String) = pkg in SettingsMap.INSTALLERS || pkg in launchers
     private var strictPending = false
     private var lastBlock = 0L
 
@@ -75,6 +89,7 @@ class PrimeAccessibilityService : AccessibilityService() {
         ContextCompat.registerReceiver(this, r, filter, ContextCompat.RECEIVER_EXPORTED)
         unlockReceiver = r
         Strict.checkClock(this)
+        loadLaunchers()
         main.postDelayed(imageTick, 60_000L)
         main.postDelayed(clockTick, 30_000L)
     }
@@ -109,8 +124,11 @@ class PrimeAccessibilityService : AccessibilityService() {
                     event.text?.forEach { append(it).append(' ') }
                     event.contentDescription?.let { append(it) }
                 }
-                val rule = if (pkg in SettingsMap.WATCHED) SettingsMap.match(pkg, cls, evText)
-                else SettingsMap.matchUninstall(pkg, cls, evText)
+                val rule = when {
+                    pkg in SettingsMap.WATCHED -> SettingsMap.match(pkg, cls, evText)
+                    canUninstall(pkg) -> SettingsMap.matchUninstall(pkg, cls, evText)
+                    else -> null
+                }
                 if (rule != null) {
                     blockSettings(rule.name)
                     return
@@ -118,7 +136,7 @@ class PrimeAccessibilityService : AccessibilityService() {
             }
             appFriction(pkg)
         }
-        if (strict && (pkg in SettingsMap.WATCHED || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
+        if (strict && (pkg in SettingsMap.WATCHED || canUninstall(pkg))) {
             scheduleStrictCheck()
         }
         if (Train.guardOn && Train.capText && pkg !in SKIP) {
@@ -166,6 +184,7 @@ class PrimeAccessibilityService : AccessibilityService() {
         val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
         val pkg = root.packageName?.toString() ?: return
         if (pkg == packageName) return
+        if (pkg !in SettingsMap.WATCHED && !canUninstall(pkg)) return
         val cls = lastClass[pkg] ?: ""
         val watched = pkg in SettingsMap.WATCHED
         worker.execute {
@@ -255,7 +274,7 @@ class PrimeAccessibilityService : AccessibilityService() {
         val words = Train.words
         worker.execute {
             val text = runCatching { TextMatcher.collect(root) }.getOrDefault("")
-            if (Strict.active) {
+            if (Strict.active && canUninstall(pkg)) {
                 SettingsMap.matchUninstall(pkg, "", text)?.let { r -> main.post { blockSettings(r.name) }; return@execute }
             }
             if (TextMatcher.matches(text, words)) main.post { catchMoment(pkg, "text") }

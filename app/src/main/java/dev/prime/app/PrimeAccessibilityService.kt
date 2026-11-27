@@ -99,11 +99,26 @@ class PrimeAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
         if (pkg == packageName) return
 
+        val strict = Strict.active
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            event.className?.let { lastClass[pkg] = it.toString() }
+            val cls = event.className?.toString() ?: ""
+            lastClass[pkg] = cls
+            if (strict) {
+                // Fast path: decide from the event itself, before the new window can be tapped.
+                val evText = buildString {
+                    event.text?.forEach { append(it).append(' ') }
+                    event.contentDescription?.let { append(it) }
+                }
+                val rule = if (pkg in SettingsMap.WATCHED) SettingsMap.match(pkg, cls, evText)
+                else SettingsMap.matchUninstall(pkg, cls, evText)
+                if (rule != null) {
+                    blockSettings(rule.name)
+                    return
+                }
+            }
             appFriction(pkg)
         }
-        if (pkg in SettingsMap.WATCHED && Strict.active) {
+        if (strict && (pkg in SettingsMap.WATCHED || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
             scheduleStrictCheck()
         }
         if (Train.guardOn && Train.capText && pkg !in SKIP) {
@@ -140,26 +155,30 @@ class PrimeAccessibilityService : AccessibilityService() {
     private fun scheduleStrictCheck() {
         if (strictPending) return
         strictPending = true
-        main.postDelayed({
+        main.post {
             strictPending = false
             strictCheck()
-        }, 120L)
+        }
     }
 
     private fun strictCheck() {
         if (!Strict.active) return
         val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
         val pkg = root.packageName?.toString() ?: return
-        if (pkg !in SettingsMap.WATCHED) return
+        if (pkg == packageName) return
         val cls = lastClass[pkg] ?: ""
+        val watched = pkg in SettingsMap.WATCHED
         worker.execute {
-            val text = runCatching { TextMatcher.collect(root, 1500) }.getOrDefault("")
-            val rule = SettingsMap.match(pkg, cls, text) ?: return@execute
+            val text = runCatching { TextMatcher.collect(root, if (watched) 1500 else 400) }.getOrDefault("")
+            val rule = (if (watched) SettingsMap.match(pkg, cls, text) else SettingsMap.matchUninstall(pkg, cls, text))
+                ?: return@execute
             main.post { blockSettings(rule.name) }
         }
     }
 
     private fun blockSettings(name: String) {
+        // Cover the screen first: the cover swallows every tap while the window underneath closes.
+        showCover()
         val t = SystemClock.elapsedRealtime()
         if (t - lastBlock < 600) return
         lastBlock = t
@@ -170,6 +189,49 @@ class PrimeAccessibilityService : AccessibilityService() {
                 .putExtra("what", name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
+    }
+
+    private var cover: View? = null
+
+    private fun showCover() {
+        if (cover != null) {
+            main.removeCallbacks(removeCoverRunnable)
+            main.postDelayed(removeCoverRunnable, 1500L)
+            return
+        }
+        val wm = getSystemService(WindowManager::class.java) ?: return
+        val v = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(0xFF000000.toInt())
+            isClickable = true // swallow touches
+            addView(TextView(this@PrimeAccessibilityService).apply {
+                text = "LOCKED"
+                setTextColor(ACCENT_ARGB)
+                textSize = 34f
+                typeface = Typeface.DEFAULT_BOLD
+                letterSpacing = 0.2f
+            })
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.OPAQUE,
+        )
+        runCatching { wm.addView(v, lp) }.onSuccess {
+            cover = v
+            main.postDelayed(removeCoverRunnable, 1500L)
+        }
+    }
+
+    private val removeCoverRunnable = Runnable {
+        val c = cover ?: return@Runnable
+        cover = null
+        runCatching { getSystemService(WindowManager::class.java)?.removeView(c) }
     }
 
     // ------------------------------------------------------------ text check
@@ -193,6 +255,9 @@ class PrimeAccessibilityService : AccessibilityService() {
         val words = Train.words
         worker.execute {
             val text = runCatching { TextMatcher.collect(root) }.getOrDefault("")
+            if (Strict.active) {
+                SettingsMap.matchUninstall(pkg, "", text)?.let { r -> main.post { blockSettings(r.name) }; return@execute }
+            }
             if (TextMatcher.matches(text, words)) main.post { catchMoment(pkg, "text") }
         }
     }
@@ -336,6 +401,7 @@ class PrimeAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         main.removeCallbacksAndMessages(null)
         removeBanner()
+        removeCoverRunnable.run()
         unlockReceiver?.let { runCatching { unregisterReceiver(it) } }
         unlockReceiver = null
         worker.execute { runCatching { classifier?.close() } }

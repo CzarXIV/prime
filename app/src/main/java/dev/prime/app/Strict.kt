@@ -234,7 +234,27 @@ object SettingsMap {
         },
     )
 
+    private val UNINSTALL_PRIME = Regex("uninstall\\s+[\"“']?prime\\b(?!\\s*video)")
+    private val UNINSTALL_RULE = Rule("Uninstall screens", "Uninstalling Prime") { _, _, _ -> true }
+
+    /**
+     * Uninstall confirmations from any app (installer, launcher, Play Store). Fast enough to run on
+     * the first event of a window, from the event's own text, before the dialog can be tapped.
+     */
+    fun matchUninstall(pkg: String, cls: String, text: String): Rule? {
+        val t = text.lowercase()
+        val prime = hasPrime(t)
+        val uninstallUi = cls.contains("uninstall", ignoreCase = true) || t.contains("uninstall")
+        return when {
+            UNINSTALL_PRIME.containsMatchIn(t) -> UNINSTALL_RULE
+            prime && uninstallUi && (pkg in INSTALLERS || t.contains("do you want to uninstall") ||
+                t.contains("want to uninstall") || t.contains("will be uninstalled")) -> UNINSTALL_RULE
+            else -> null
+        }
+    }
+
     fun match(pkg: String, cls: String, text: String): Rule? {
+        matchUninstall(pkg, cls, text)?.let { return it }
         if (pkg !in WATCHED) return null
         val t = text.lowercase()
         return RULES.firstOrNull { it.test(pkg, cls, t) }
